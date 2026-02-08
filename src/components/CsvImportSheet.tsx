@@ -45,7 +45,7 @@ export function CsvImportSheet({ open, onOpenChange }: Props) {
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<number, MappableField>>({});
   const [accountId, setAccountId] = useState(accounts[0]?.id || "");
-  const [preview, setPreview] = useState<Array<{ date: string; merchant: string; amount: number }>>([]);
+  const [preview, setPreview] = useState<Array<{ date: string; merchant: string; amount: number; rowIndex: number }>>([]);
   const [dupeCount, setDupeCount] = useState(0);
   const [importCount, setImportCount] = useState(0);
 
@@ -97,10 +97,10 @@ export function CsvImportSheet({ open, onOpenChange }: Props) {
     if (!dateIdx || !merchantIdx || (!amountIdx && !debitIdx)) return;
 
     const existingHashes = new Set(transactions.map((t) => t.hash).filter(Boolean));
-    const items: Array<{ date: string; merchant: string; amount: number }> = [];
+    const items: Array<{ date: string; merchant: string; amount: number; rowIndex: number }> = [];
     let dupes = 0;
 
-    rows.forEach((row) => {
+    rows.forEach((row, rowIndex) => {
       const hash = hashRow(row);
       if (existingHashes.has(hash)) {
         dupes++;
@@ -127,6 +127,7 @@ export function CsvImportSheet({ open, onOpenChange }: Props) {
         date,
         merchant: row[Number(merchantIdx)] || "Unknown",
         amount,
+        rowIndex,
       });
     });
 
@@ -137,15 +138,12 @@ export function CsvImportSheet({ open, onOpenChange }: Props) {
 
   const handleImport = () => {
     const catIdx = Object.entries(mapping).find(([, v]) => v === "category")?.[0];
-    const existingHashes = new Set(transactions.map((t) => t.hash).filter(Boolean));
 
     let count = 0;
-    rows.forEach((row, i) => {
+    preview.forEach((p) => {
+      const row = rows[p.rowIndex];
+      if (!row) return;
       const hash = hashRow(row);
-      if (existingHashes.has(hash)) return;
-      if (i >= preview.length) return;
-      const p = preview[i];
-      if (!p) return;
 
       addTransaction({
         id: crypto.randomUUID(),

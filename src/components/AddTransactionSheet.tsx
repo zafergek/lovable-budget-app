@@ -16,23 +16,26 @@ export function AddTransactionSheet({ open, onOpenChange }: Props) {
   const [category, setCategory] = useState("Other");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [isExpense, setIsExpense] = useState(true);
+  const [note, setNote] = useState("");
 
   const handleSubmit = () => {
-    if (!merchant || !amount || !accountId) return;
+    if (!merchant.trim() || !amount || !accountId) return;
     const num = parseFloat(amount);
-    if (isNaN(num)) return;
+    if (isNaN(num) || num <= 0) return;
 
     addTransaction({
       id: crypto.randomUUID(),
       accountId,
       date,
-      merchant,
+      merchant: merchant.trim(),
       amount: isExpense ? -Math.abs(num) : Math.abs(num),
       category,
+      ...(note.trim() && { note: note.trim() }),
     });
 
     setMerchant("");
     setAmount("");
+    setNote("");
     onOpenChange(false);
   };
 
@@ -124,6 +127,17 @@ export function AddTransactionSheet({ open, onOpenChange }: Props) {
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full rounded-lg bg-secondary px-3 py-2.5 text-sm text-foreground"
+            />
+          </div>
+
+          {/* Note */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Note (optional)</label>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Add a note..."
+              className="w-full rounded-lg bg-secondary px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground"
             />
           </div>
 

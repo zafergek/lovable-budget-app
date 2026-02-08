@@ -69,10 +69,23 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       const direct = fxRates.find((r) => r.from === from && r.to === to);
       if (direct) return amount * direct.rate;
       const reverse = fxRates.find((r) => r.from === to && r.to === from);
-      if (reverse) return amount / reverse.rate;
-      return amount; // fallback
+      if (reverse && reverse.rate !== 0) return amount / reverse.rate;
+      // Try two-hop conversion via home currency
+      const homeCurrency = settings.homeCurrency;
+      if (from !== homeCurrency && to !== homeCurrency) {
+        const toHome = fxRates.find((r) => r.from === from && r.to === homeCurrency)
+          || fxRates.find((r) => r.from === homeCurrency && r.to === from);
+        const fromHome = fxRates.find((r) => r.from === to && r.to === homeCurrency)
+          || fxRates.find((r) => r.from === homeCurrency && r.to === to);
+        if (toHome && fromHome) {
+          const inHome = toHome.from === from ? amount * toHome.rate : amount / toHome.rate;
+          return fromHome.from === homeCurrency ? inHome * fromHome.rate : inHome / fromHome.rate;
+        }
+      }
+      console.warn(`No FX rate found for ${from} → ${to}, returning unconverted amount`);
+      return amount;
     },
-    [fxRates]
+    [fxRates, settings.homeCurrency]
   );
 
   const addTransaction = useCallback(
@@ -87,17 +100,15 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   const deleteTransaction = useCallback(
     (id: string) => {
-      setTransactions((prev) => {
-        const tx = prev.find((t) => t.id === id);
-        if (tx) {
-          setAccounts((accs) =>
-            accs.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance - tx.amount } : a))
-          );
-        }
-        return prev.filter((t) => t.id !== id);
-      });
+      const tx = transactions.find((t) => t.id === id);
+      if (tx) {
+        setAccounts((accs) =>
+          accs.map((a) => (a.id === tx.accountId ? { ...a, balance: a.balance - tx.amount } : a))
+        );
+      }
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
     },
-    [setTransactions, setAccounts]
+    [transactions, setTransactions, setAccounts]
   );
 
   const addAccount = useCallback(
